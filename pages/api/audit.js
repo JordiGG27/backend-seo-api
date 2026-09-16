@@ -1,5 +1,5 @@
-const { scrapeSEOData } = require('../../lib/scraper');
-const { getPageSpeedData } = require('../../lib/pagespeed');
+import { scrapeSEOData } from '../../lib/scraper';
+import { getPageSpeedData } from '../../lib/pagespeed';
 
 function normalizeUrl(rawUrl) {
   if (!rawUrl) return null;
@@ -14,7 +14,7 @@ function normalizeUrl(rawUrl) {
   }
 }
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ success: false, error: 'Método no permitido. Usa GET o POST.' });
   }
@@ -69,4 +69,4 @@ module.exports = async function handler(req, res) {
   };
 
   return res.status(200).json(response);
-};
+}
