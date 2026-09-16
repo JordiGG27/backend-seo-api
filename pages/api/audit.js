@@ -1,5 +1,6 @@
 import { scrapeSEOData } from '../../lib/scraper';
 import { getPageSpeedData } from '../../lib/pagespeed';
+import { checkBrokenLinks } from '../../lib/linkChecker';
 
 function normalizeUrl(rawUrl) {
   if (!rawUrl) return null;
@@ -37,13 +38,10 @@ export default async function handler(req, res) {
     });
   }
 
-  const [scrapeResult, pageSpeedResult] = await Promise.allSettled([
-    scrapeSEOData(targetUrl),
-    getPageSpeedData(targetUrl),
-  ]);
-
-  if (scrapeResult.status === 'rejected') {
-    const err = scrapeResult.reason;
+  let seoData;
+  try {
+    seoData = await scrapeSEOData(targetUrl);
+  } catch (err) {
     const isTimeout = err.code === 'ECONNABORTED';
     const isNotFound = err.code === 'ENOTFOUND' || err.response?.status === 404;
     const isBlocked = err.response?.status === 403 || err.response?.status === 429;
@@ -62,11 +60,27 @@ export default async function handler(req, res) {
     });
   }
 
+  const { internalUrls, ...linksSummary } = seoData.links;
+
+  const [brokenLinksResult, pageSpeedResult] = await Promise.allSettled([
+    checkBrokenLinks(internalUrls),
+    getPageSpeedData(targetUrl),
+  ]);
+
   const response = {
     success: true,
     url: targetUrl,
     analyzedAt: new Date().toISOString(),
-    seo: scrapeResult.value,
+    seo: {
+      ...seoData,
+      links: {
+        ...linksSummary,
+        brokenLinksCheck:
+          brokenLinksResult.status === 'fulfilled'
+            ? brokenLinksResult.value
+            : { error: 'No se pudo comprobar los enlaces internos', details: brokenLinksResult.reason?.message },
+      },
+    },
     performance:
       pageSpeedResult.status === 'fulfilled'
         ? pageSpeedResult.value
