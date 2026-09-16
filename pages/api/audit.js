@@ -1,6 +1,7 @@
 import { scrapeSEOData } from '../../lib/scraper';
 import { getPageSpeedData } from '../../lib/pagespeed';
 import { checkBrokenLinks } from '../../lib/linkChecker';
+import { checkAIBotAccess } from '../../lib/geoAnalyzer';
 
 function normalizeUrl(rawUrl) {
   if (!rawUrl) return null;
@@ -62,9 +63,10 @@ export default async function handler(req, res) {
 
   const { internalUrls, ...linksSummary } = seoData.links;
 
-  const [brokenLinksResult, pageSpeedResult] = await Promise.allSettled([
+  const [brokenLinksResult, pageSpeedResult, aiBotAccessResult] = await Promise.allSettled([
     checkBrokenLinks(internalUrls),
     getPageSpeedData(targetUrl),
+    checkAIBotAccess(targetUrl),
   ]);
 
   const response = {
@@ -79,6 +81,13 @@ export default async function handler(req, res) {
           brokenLinksResult.status === 'fulfilled'
             ? brokenLinksResult.value
             : { error: 'No se pudo comprobar los enlaces internos', details: brokenLinksResult.reason?.message },
+      },
+      geo: {
+        ...seoData.geo,
+        aiBotAccess:
+          aiBotAccessResult.status === 'fulfilled'
+            ? aiBotAccessResult.value
+            : { error: 'No se pudo comprobar robots.txt', details: aiBotAccessResult.reason?.message },
       },
     },
     performance:
