@@ -1,7 +1,0 @@
-{
-  "functions": {
-    "pages/api/audit.js": {
-      "maxDuration": 60
-    }
-  }
-}
